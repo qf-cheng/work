@@ -87,3 +87,68 @@
 - `packages/server`：ResourceRegistry + ResourceService + datasource provider
 
 该结构有助于把 UI 与运行时逻辑解耦，便于多端复用（Web/H5）。
+
+## 9. 基础架构完整代码设计（Next.js 优先，Nest 可选）
+
+> 目标：先在 Next.js 内实现基础后端能力（API routes），满足资源 CRUD 与页面渲染；后续可平滑迁移到 Nest。
+
+### 9.1 模块边界与职责
+
+- **schema 包**：维护 UI schema、动作 DSL、资源定义的 TypeScript 类型。
+- **runtime 包**：提供运行时状态容器、路径解析器、动作执行器。
+- **renderer 包**：负责组件注册表与 schema 渲染器（与 UI 层解耦）。
+- **editor 包**：负责 schema 编辑器（树/属性/动作流）。
+- **server 包**：提供通用资源 CRUD、注册器、数据源插件。
+
+### 9.2 TypeScript 领域模型（建议字段）
+
+- `PageSchema`：`id/title/rootInit/layout/actions/onLoadAction` 等。
+- `ActionDef`：`flow/branch/resource/*/set` 四类核心动作。
+- `ResourceSchema`：`name/collection/schema/options`。
+- `RuntimeRoot`：`$data/$ui/$tmp/$meta` 状态树。
+
+### 9.3 Runtime 执行器（建议 API）
+
+- `createRuntime(schema)` -> `{ root, runAction, getValue, setValue }`
+- `runAction(actionId, ctx)` 支持 flow/branch/resource/set 与 inline action。
+- `resolveValue` 支持 `$data/$ui/$tmp/$ctx` 语义。
+
+### 9.4 Server API 设计（Next.js 方案）
+
+> 采用 Next.js `app/api` 路由快速落地（后续可迁移到 Nest Controller）。
+
+- `GET /api/resources` -> list registry
+- `GET /api/:resource` -> list
+- `GET /api/:resource/:id` -> detail
+- `POST /api/:resource` -> create
+- `PATCH /api/:resource/:id` -> update
+- `DELETE /api/:resource/:id` -> remove
+
+底层逻辑复用 `ResourceRegistry` + `ResourceService`，数据源默认 Mongo，后续可以扩展为 `HttpDatasourceProvider`。
+
+### 9.5 数据源插件化（建议接口）
+
+- `DatasourceProvider`：
+  - `list(resource, params)`
+  - `detail(resource, id)`
+  - `create(resource, payload)`
+  - `update(resource, id, payload)`
+  - `remove(resource, id)`
+- `Registry` 内保存 resource -> datasourceType 映射。
+
+### 9.6 渲染器与组件注册表
+
+- `RendererRegistry`：`register(type, component)` / `get(type)`
+- `NodeRenderer`：递归渲染 `layout` 树，并注入 runtime 绑定能力（bind/on）。
+
+### 9.7 编辑器与设计时态
+
+- 设计时与运行时分离：编辑器只改 schema（增删改查），运行时只消费 schema。
+- Schema 版本控制：支持 `version` + `history`，便于差异对比。
+
+### 9.8 迁移路径
+
+1. 抽象 TypeScript schema 与 runtime 包，保持 Vue 端可对接（行为一致）。
+2. 在 Next.js 中复用 runtime + renderer，实现 React 渲染器。
+3. 将 Express 路由迁移为 Next.js API（或 Nest Controller）。
+4. 收敛 schema 编辑器到 React 版本。
