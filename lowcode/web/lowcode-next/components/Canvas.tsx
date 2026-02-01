@@ -1,19 +1,16 @@
 import { NodeRenderer } from "./NodeRenderer";
-import type { LowCodeSchema } from "../lib/schema";
+import type { LayoutNode, RuntimeRoot } from "../lib/schema";
 
 interface CanvasProps {
-  schema: LowCodeSchema;
-  selectedId: string;
+  layout: LayoutNode;
+  runtime: RuntimeRoot;
+  onAction: (actionId: string, ctx?: Record<string, unknown>) => void;
 }
 
-export function Canvas({ schema, selectedId }: CanvasProps) {
+export function Canvas({ layout, runtime, onAction }: CanvasProps) {
   return (
     <section className="canvas">
-      <NodeRenderer
-        nodeId={schema.rootId}
-        nodes={schema.nodes}
-        selectedId={selectedId}
-      />
+      <NodeRenderer node={layout} runtime={runtime} onAction={onAction} />
     </section>
   );
 }

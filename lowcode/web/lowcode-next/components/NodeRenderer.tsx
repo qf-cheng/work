@@ -1,42 +1,24 @@
 import { registry } from "../lib/registry";
-import type { LowCodeNodeMap } from "../lib/schema";
+import type { LayoutNode, RuntimeRoot } from "../lib/schema";
 
 interface NodeRendererProps {
-  nodeId: string;
-  nodes: LowCodeNodeMap;
-  selectedId: string;
+  node: LayoutNode;
+  runtime: RuntimeRoot;
+  onAction: (actionId: string, ctx?: Record<string, unknown>) => void;
 }
 
-export function NodeRenderer({ nodeId, nodes, selectedId }: NodeRendererProps) {
-  const node = nodes[nodeId];
-  if (!node) {
-    return null;
-  }
-
+export function NodeRenderer({ node, runtime, onAction }: NodeRendererProps) {
   const Component = registry[node.type];
   if (!Component) {
-    return (
-      <div className="node-fallback">
-        未注册组件：{node.type}
-      </div>
-    );
+    return <div className="node-fallback">未注册组件：{node.type}</div>;
   }
 
-  const isSelected = node.id === selectedId;
-
   return (
-    <div className={isSelected ? "node node-selected" : "node"}>
-      <Component node={node}>
-        {node.children?.length
-          ? node.children.map((childId) => (
-              <NodeRenderer
-                key={childId}
-                nodeId={childId}
-                nodes={nodes}
-                selectedId={selectedId}
-              />
-            ))
-          : null}
+    <div className="node">
+      <Component node={node} runtime={runtime} onAction={onAction}>
+        {node.children?.map((child) => (
+          <NodeRenderer key={child.id} node={child} runtime={runtime} onAction={onAction} />
+        ))}
       </Component>
     </div>
   );
